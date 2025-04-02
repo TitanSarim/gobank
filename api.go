@@ -1,8 +1,10 @@
 package main
 
 import (
+        "embed"
 	"encoding/json"
 	"fmt"
+        "io/fs"
 	"log"
 	"net/http"
 	"strconv"
@@ -12,6 +14,9 @@ import (
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
+
+//go:embed swagger-ui
+var swaggerUIFS embed.FS
 
 
 
@@ -38,6 +43,18 @@ func (s *APIServer) Run() {
 	log.Println("Json API Server on port:", s.listenAddr)
 
 	http.ListenAndServe(s.listenAddr, router)
+}
+
+func (s *APIServer) handleSwaggerUI(w http.ResponseWriter, r *http.Request) {
+    // Get the subdirectory of the embedded files.
+    swaggerUISubFS, err := fs.Sub(swaggerUIFS, "swagger-ui")
+    if err != nil {
+        http.Error(w, "Could not load embedded Swagger UI files", http.StatusInternalServerError)
+        return
+    }
+
+    fs := http.FileServer(http.FS(swaggerUISubFS))
+    http.StripPrefix("/swagger/", fs).ServeHTTP(w, r)
 }
 
 func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error{
